@@ -17,11 +17,15 @@ import { createAccessToken, createRefreshToken } from './auth'
 import { isAuth } from './isAuthMiddleware'
 import { sendRefreshToken } from './sendRefreshToken'
 import { getConnection } from "typeorm"
+import { verify } from "jsonwebtoken";
 
 @ObjectType()
 class LoginResponse {
   @Field()
   accessToken: string
+
+  @Field(() => User)
+  user: User
 }
 
 @Resolver()
@@ -36,8 +40,26 @@ export class UserResolvers {
   bye(
     @Ctx() { payload }: MyContext
   ) {
-    console.log('payload', payload)
     return `your user id is ${payload!.userId}`
+  }
+
+  @Query(() => User, { nullable: true })
+  me(
+    @Ctx() context: MyContext
+  ) {
+    const authorization = context.req.headers['authorization']
+    if (!authorization) {
+      return null
+    }
+    try {
+      const token = authorization.split(' ')[1]
+      const payload: any = verify(token, process.env.ACCESS_TOKEN_SECRET!)
+      context.payload = payload as any;
+      return User.findOne(payload.userId)
+    } catch (err) {
+      console.log('query me error', err)
+      return null
+    }
   }
 
   @Query(() => [User])
@@ -79,8 +101,18 @@ export class UserResolvers {
     sendRefreshToken(res, createRefreshToken(user))
 
     return {
-      accessToken: createAccessToken(user)
+      accessToken: createAccessToken(user),
+      user,
     }
+  }
+
+  @Mutation(() => Boolean)
+  async logout(
+    @Ctx() { res }: MyContext
+  ) {
+    sendRefreshToken(res, '')
+
+    return true
   }
 
   @Mutation(() => Boolean)
