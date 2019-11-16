@@ -61,7 +61,8 @@ import { sendRefreshToken } from './sendRefreshToken'
     schema: await buildSchema({
       resolvers: [UserResolvers]
     }),
-    context: ({ req, res }) => ({ req, res })
+    context: ({ req, res }) => ({ req, res }),
+    introspection: true, // Enables and disables schema introspection. Disabled in production by default
   })
 
   apolloServer.applyMiddleware({ app, cors: false })
